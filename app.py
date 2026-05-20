@@ -1,4 +1,5 @@
 import os
+import threading
 
 from flask import Flask, request
 
@@ -14,7 +15,9 @@ def health():
 
 @app.route(webhook_path(), methods=["POST"])
 def telegram_webhook():
-    handle_update(request.get_json(force=True, silent=True) or {})
+    update = request.get_json(force=True, silent=True) or {}
+    # Сразу 200 — иначе Telegram повторяет webhook, пока идёт генерация (минуты).
+    threading.Thread(target=handle_update, args=(update,), daemon=True).start()
     return "", 200
 
 

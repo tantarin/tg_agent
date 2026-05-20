@@ -1,5 +1,7 @@
 import os
+import threading
 import time
+from collections import OrderedDict
 from pathlib import Path
 from typing import Optional
 
@@ -12,6 +14,10 @@ load_dotenv(Path(__file__).resolve().parent / ".env", override=True)
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 MAX_MESSAGE_LEN = 4096
+
+_PROCESSED_LOCK = threading.Lock()
+_PROCESSED_IDS: OrderedDict = OrderedDict()
+_MAX_PROCESSED = 500
 
 HELP_TEXT = """Привет! Я генерирую посты для Telegram-канала.
 
@@ -53,7 +59,22 @@ def _topic_from_message(text: str) -> Optional[str]:
     return text
 
 
+def _already_processed(update_id: Optional[int]) -> bool:
+    if update_id is None:
+        return False
+    with _PROCESSED_LOCK:
+        if update_id in _PROCESSED_IDS:
+            return True
+        _PROCESSED_IDS[update_id] = True
+        while len(_PROCESSED_IDS) > _MAX_PROCESSED:
+            _PROCESSED_IDS.popitem(last=False)
+        return False
+
+
 def handle_update(update: dict) -> None:
+    if _already_processed(update.get("update_id")):
+        return
+
     message = update.get("message") or update.get("edited_message")
     if not message or "text" not in message:
         return
