@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: tg-agent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: WEBHOOK_SECRET
+        generateValue: true
+      - key: OPENROUTER_MODEL
+        value: google/gemma-4-26b-a4b-it:free
